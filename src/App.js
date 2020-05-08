@@ -42,7 +42,7 @@ function App() {
   const [jokesToShow, setJokesToShow] = useState([]);
 
   const [categories, setCategories] = useState([]);
-  const [filterCategories, setFilterCategories] = useState([]);
+  const [filterCategories, setFilterCategories] = useState(["regular"]);
 
   const [likedJokes, setLikedJokes] = useState([]);
   const [currentTab, setCurrentTab] = useState(0);
@@ -60,8 +60,7 @@ function App() {
     fetch("https://api.icndb.com/categories")
       .then((res) => res.json())
       .then((res) => {
-        setCategories(res.value);
-        setFilterCategories([]);
+        setCategories(["regular", ...res.value]);
         setLoading(false);
       })
       .catch((err) => console.log(err));
@@ -74,7 +73,16 @@ function App() {
       .then((res) => res.json())
       .then((res) => {
         setJokes(res.value);
-        setJokesToShow(res.value.slice(0, 10));
+
+        const filteredJokes = [];
+
+        res.value.forEach((joke) => {
+          if (categoryMatch(joke.categories)) {
+            filteredJokes.push(joke);
+          }
+        });
+
+        setJokesToShow(filteredJokes.slice(0, 10));
         setLoading(false);
       })
       .catch((err) => console.log(err));
@@ -96,9 +104,16 @@ function App() {
   };
 
   const addMoreJokes = () => {
+    const filteredJokes = [];
+
+    jokes.forEach((joke) => {
+      if (categoryMatch(joke.categories)) {
+        filteredJokes.push(joke);
+      }
+    });
     setLoading(true);
     setTimeout(() => {
-      setJokesToShow(jokes.slice(0, jokesToShow.length + 10));
+      setJokesToShow(filteredJokes.slice(0, jokesToShow.length + 10));
       setLoading(false);
     }, 400);
   };
@@ -120,9 +135,22 @@ function App() {
   };
 
   useEffect(() => {
+    const filteredJokes = [];
+
+    jokes.forEach((joke) => {
+      if (categoryMatch(joke.categories)) {
+        filteredJokes.push(joke);
+      }
+    });
+
+    setJokesToShow(filteredJokes.slice(0, 10));
+  }, [filterCategories]);
+
+  useEffect(() => {
     const bottomJokeEl = document.getElementById(
       `joke-${jokesToShow.length - 1}`
     );
+    // Don't observe filtered jokes
     observeElement(bottomJokeEl);
   }, [jokesToShow]);
 
@@ -142,6 +170,8 @@ function App() {
   };
 
   const categoryMatch = (jokeCategories) => {
+    if (jokeCategories.length === 0) jokeCategories[0] = "regular";
+
     for (let i = 0; i < jokeCategories.length; i++) {
       if (filterCategories.includes(jokeCategories[i])) return true;
     }
@@ -223,10 +253,7 @@ function App() {
           ))}
           {/* Joke Cards */}
           {jokesToShow.map((joke, index) => {
-            if (
-              joke.categories.length === 0 ||
-              categoryMatch(joke.categories)
-            ) {
+            if (categoryMatch(joke.categories)) {
               return (
                 <JokeCard
                   key={joke.id}
